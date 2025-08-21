@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>公款记录系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {font-family: "Segoe UI", Arial, sans-serif;margin: 0;background: #f4f6f9;color: #333;}
+    header {background: linear-gradient(135deg, #4e73df, #1cc88a);color: white;padding: 15px 20px;display: flex;align-items: center;box-shadow: 0 3px 6px rgba(0,0,0,0.2);}
+    header h1 {margin: 0;font-size: 20px;flex: 1;text-align: center;}
+    header img {height: 32px;width: 32px;margin-left: 10px;}
+    .sidebar {height: 100%;width: 0;position: fixed;top: 0;left: 0;background: #fff;box-shadow: 2px 0 8px rgba(0,0,0,0.2);overflow-x: hidden;transition: 0.3s;padding-top: 60px;z-index: 999;}
+    .sidebar a {padding: 15px 25px;text-decoration: none;font-size: 16px;color: #333;display: block;transition: 0.2s;}
+    .sidebar a:hover {background: #f4f6f9;color: #4e73df;}
+    .openbtn {font-size: 20px;cursor: pointer;background: none;border: none;color: white;}
+    main {padding: 20px;max-width: 1000px;margin: auto;}
+    .card {background: white;border-radius: 12px;padding: 20px;margin-bottom: 20px;box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+    .card h2 {margin-top: 0;color: #4e73df;}
+    button.action, .user-btn, .cancel-btn {background: #4e73df;color: white;cursor: pointer;border: none;border-radius: 6px;padding: 6px 10px;margin: 3px;font-size: 12px;}
+    .user-btn:hover, button.action:hover, .cancel-btn:hover {background: #2e59d9;}
+    table {width: 100%;border-collapse: collapse;margin: 15px 0;}
+    th, td {border: 1px solid #eee;padding: 10px;text-align: center;}
+    th {background: #f8f9fc;}
+    .alert {color: red;font-weight: bold;margin-top: 10px;}
+    .stats {display: flex;justify-content: space-between;flex-wrap: wrap;}
+    .stat-box {flex: 1;min-width: 200px;background: #f8f9fc;border-radius: 8px;margin: 10px;padding: 15px;text-align: center;}
+    .stat-box h3 {margin: 5px 0;font-size: 18px;}
+    .stat-box p {font-size: 20px;font-weight: bold;color: #1cc88a;}
+    .tab-content {display: none;}
+    .tab-content.active {display: block;}
+    .spend-card {background: #f8f9fc;border-left: 6px solid #e74a3b;padding: 10px 15px;margin: 10px 0;border-radius: 6px;}
+    .spend-card h4 {margin: 0;color: #e74a3b;}
+    .spend-card small {color: gray;}
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1cc88a;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 6px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+    }
+  </style>
+</head>
+<body onload="initialize()">
+  <div class="notification" id="notification">本月已刷新交钱状态！</div>
+  
+  <header>
+    <button class="openbtn" onclick="openNav()">☰</button>
+    <h1>💰 公款记录系统</h1>
+    <img src="logo.png" alt="公款记录系统logo">
+  </header>
+
+  <!-- 侧边栏 -->
+  <div id="mySidebar" class="sidebar">
+    <a href="javascript:void(0)" onclick="showTab('payTab');closeNav()">交钱记录</a>
+    <a href="javascript:void(0)" onclick="showTab('spendTab');closeNav()">支出记录</a>
+    <a href="javascript:void(0)" onclick="showTab('historyTab');closeNav()">历史记录</a>
+    <a href="javascript:void(0)" onclick="showTab('incomeTab');closeNav()">收入记录</a>
+  </div>
+
+  <main>
+    <!-- 交钱记录 -->
+    <div id="payTab" class="tab-content active card">
+      <h2>交钱记录</h2>
+      <div id="userButtons"></div>
+      <table id="paymentTable"><thead><tr><th>姓名</th><th>是否交钱</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <!-- 支出记录 -->
+    <div id="spendTab" class="tab-content card">
+      <h2>记录消费</h2>
+      <input type="text" id="remark" placeholder="花了什么">
+      <input type="number" id="amount" placeholder="金额 (RM)">
+      <select id="spender">
+        <option value="">选择由谁出钱</option>
+        <option value="kian">kian</option>
+        <option value="CJ">CJ</option>
+        <option value="Rain">Rain</option>
+        <option value="Yongliang">Yongliang</option>
+        <option value="Tommy">Tommy</option>
+        <option value="heng jing">heng jing</option>
+        <option value="Xiang">Xiang</option>
+      </select>
+      <button class="action" onclick="spend()">记录消费</button>
+      <p id="warning" class="alert"></p>
+      <div id="spendList"></div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div id="historyTab" class="tab-content card">
+      <h2>历史记录</h2>
+      <table id="historyTable"><thead><tr><th>类型</th><th>姓名/备注</th><th>金额</th><th>日期</th></tr></thead><tbody></tbody></table>
+      <div class="stats">
+        <div class="stat-box"><h3>总收入</h3><p id="totalIn">0</p></div>
+        <div class="stat-box"><h3>总支出</h3><p id="totalOut">0</p></div>
+        <div class="stat-box"><h3>余额</h3><p id="balance">0</p></div>
+      </div>
+      <canvas id="chart" height="150"></canvas>
+    </div>
+
+    <!-- 收入记录 -->
+    <div id="incomeTab" class="tab-content card">
+      <h2>收入记录（每月）</h2>
+      <div id="incomeHistoryList"></div>
+    </div>
+  </main>
+
+  <script>
+    const members = ["shao xiang","rain","kian","yong liang","heng jing","CJ","Tommy"];
+    let payments = JSON.parse(localStorage.getItem("payments")) || {};
+    let history = JSON.parse(localStorage.getItem("history")) || [];
+    let totalIn = parseFloat(localStorage.getItem("totalIn")) || 0;
+    let totalOut = parseFloat(localStorage.getItem("totalOut")) || 0;
+    let incomeHistory = JSON.parse(localStorage.getItem("incomeHistory")) || {};
+    let currentMonth = localStorage.getItem("currentMonth") || "";
+    let lastResetDate = localStorage.getItem("lastResetDate") || "";
+
+    // 初始化函数
+    function initialize() {
+      checkMonthlyReset();
+      checkMonth();
+    }
+
+    // 检查是否需要每月1号重置交钱状态
+    function checkMonthlyReset() {
+      const now = new Date();
+      const today = now.getDate();
+      const currentDateString = now.toISOString().split('T')[0]; // 格式: YYYY-MM-DD
+      
+      // 如果今天是1号且本月尚未重置过
+      if (today === 1 && lastResetDate!== currentDateString) {
+        resetMonthlyPayments();
+        lastResetDate = currentDateString;
+        localStorage.setItem("lastResetDate", lastResetDate);
+        
+        // 显示通知
+        const notification = document.getElementById("notification");
+        notification.style.display = "block";
+        setTimeout(() => {
+          notification.style.display = "none";
+        }, 3000);
+      }
+    }
+
+    // 重置每月交钱状态（从已交变为未交）
+    function resetMonthlyPayments() {
+      // 记录重置前的总交款人数
+      const paidCount = Object.values(payments).filter(paid => paid).length;
+      
+      // 重置所有成员的交钱状态为未交
+      members.forEach(name => {
+        if (payments[name]) {
+          payments[name] = false;
+          // 记录状态重置历史
+          history.push({
+            type: "月度重置",
+            name: `${name} 交钱状态重置`,
+            amount: 0,
+            date: new Date().toLocaleString()
+          });
+        }
+      });
+      
+      // 从总收入中减去本月已交的金额
+      totalIn -= paidCount * 10;
+      
+      // 保存更改
+      save();
+    }
+
+    // 侧边栏控制
+    function openNav() {
+      document.getElementById("mySidebar").style.width = "220px";
+    }
+    
+    function closeNav() {
+      document.getElementById("mySidebar").style.width = "0";
+    }
+    
+    // 标签页切换
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // 检查月份变化
+    function checkMonth() {
+      const now = new Date();
+      const monthKey = now.getFullYear() + "-" + (now.getMonth() + 1);
+      if (monthKey!== currentMonth) {
+        if (currentMonth) {
+          incomeHistory[currentMonth] = {...payments};
+        }
+        currentMonth = monthKey;
+        localStorage.setItem("incomeHistory", JSON.stringify(incomeHistory));
+        localStorage.setItem("currentMonth", currentMonth);
+      }
+      update();
+    }
+
+    // 初始化交钱表格
+    function initTable() {
+      const tbody = document.querySelector("#paymentTable tbody");
+      tbody.innerHTML = "";
+      
+      members.forEach(name => {
+        const tr = document.createElement("tr");
+        const paid = payments[name]? "✅ 已交" : "❌ 未交";
+        let cancelBtn = payments[name]? `<button class="cancel-btn" onclick="cancelPay('${name}')">取消</button>` : "";
+        tr.innerHTML = `<td>${name}</td><td>${paid} ${cancelBtn}</td>`;
+        tbody.appendChild(tr);
+      });
+      
+      // 创建交钱按钮
+      const userBtns = document.getElementById("userButtons");
+      userBtns.innerHTML = "";
+      const today = new Date();
+      const canPay = today.getDate() === 1; // 每月1号可交钱
+      
+      members.forEach(name => {
+        const btn = document.createElement("button");
+        btn.className = "user-btn";
+        btn.textContent = name + " +RM10";
+        btn.disabled =!canPay || payments[name]; // 不是1号或已交则禁用
+        btn.onclick = () => pay(name);
+        userBtns.appendChild(btn);
+      });
+    }
+
+    // 处理交钱
+    function pay(payer) {
+      payments[payer] = true;
+      totalIn += 10;
+      history.push({
+        type: "收入",
+        name: payer,
+        amount: 10,
+        date: new Date().toLocaleString()
+      });
+      save();
+      update();
+    }
+
+    // 取消交钱 - 完善功能：记录到历史并减少存款
+    function cancelPay(payer) {
+      if (payments[payer]) {
+        // 更改交钱状态为未交
+        payments[payer] = false;
+        
+        // 减少总收入
+        totalIn -= 10;
+        
+        // 在历史记录中添加取消记录
+        history.push({
+          type: "收入取消",
+          name: payer,
+          amount: -10,  // 负数表示减少
+          date: new Date().toLocaleString()
+        });
+        
+        // 保存数据并更新界面
+        save();
+        update();
+      }
+    }
+
+    // 记录消费
+    function spend() {
+      const remark = document.getElementById("remark").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const spender = document.getElementById("spender").value;
+      
+      if (!remark ||!amount ||!spender) {
+        return alert("请输入备注、金额并选择出钱人！");
+      }
+      
+      if (amount > (totalIn - totalOut)) {
+        document.getElementById("warning").textContent = "⚠ 不够钱！余额不足";
+        return;
+      }
+      
+      document.getElementById("warning").textContent = "";
+      totalOut += amount;
+      
+      history.push({
+        type: "支出",
+        name: remark + "（出钱人: " + spender + "）",
+        amount: amount,
+        date: new Date().toLocaleString()
+      });
+      
+      save();
+      update();
+      
+      // 清空输入
+      document.getElementById("remark").value = "";
+      document.getElementById("amount").value = "";
+      document.getElementById("spender").value = "";
+    }
+
+    // 更新界面
+    function update() {
+      initTable();
+      
+      // 更新历史记录表格 - 增加日期显示
+      const historyTbody = document.querySelector("#historyTable tbody");
+      historyTbody.innerHTML = "";
+      history.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.type}</td>
+          <td>${item.name}</td>
+          <td>RM ${item.amount}</td>
+          <td>${item.date}</td>
+        `;
+        historyTbody.appendChild(tr);
+      });
+      
+      // 更新统计数据
+      document.getElementById("totalIn").textContent = "RM " + totalIn;
+      document.getElementById("totalOut").textContent = "RM " + totalOut;
+      document.getElementById("balance").textContent = "RM " + (totalIn - totalOut);
+      
+      // 更新支出列表
+      const spendList = document.getElementById("spendList");
+      spendList.innerHTML = "";
+      history.filter(h => h.type === "支出").forEach(s => {
+        const div = document.createElement("div");
+        div.className = "spend-card";
+        div.innerHTML = `<h4>${s.name}</h4><p>RM ${s.amount}</p><small>${s.date}</small>`;
+        spendList.prepend(div);
+      });
+      
+      // 更新收入历史和图表
+      updateIncomeHistory();
+      updateChart();
+    }
+
+    // 保存数据到本地存储
+    function save() {
+      localStorage.setItem("payments", JSON.stringify(payments));
+      localStorage.setItem("history", JSON.stringify(history));
+      localStorage.setItem("totalIn", totalIn);
+      localStorage.setItem("totalOut", totalOut);
+      localStorage.setItem("incomeHistory", JSON.stringify(incomeHistory));
+      localStorage.setItem("currentMonth", currentMonth);
+      localStorage.setItem("lastResetDate", lastResetDate);
+    }
+
+    // 更新收入历史记录
+    function updateIncomeHistory() {
+      const list = document.getElementById("incomeHistoryList");
+      list.innerHTML = "";
+      
+      for (let month in incomeHistory) {
+        let html = `<div class="card"><h3>${month}</h3><table><tr><th>姓名</th><th>是否交钱</th></tr>`;
+        members.forEach(name => {
+          const paid = incomeHistory[month][name]? "✅ 已交" : "❌ 未交";
+          html += `<tr><td>${name}</td><td>${paid}</td></tr>`;
+        });
+        html += "</table></div>";
+        list.innerHTML = html + list.innerHTML;
+      }
+    }
+
+    // 更新图表
+    let chart;
+    function updateChart() {
+      const ctx = document.getElementById("chart").getContext("2d");
+      const spendData = history.filter(h => h.type === "支出");
+      const categories = {};
+      
+      spendData.forEach(s => {
+        categories[s.name] = (categories[s.name] || 0) + s.amount;
+      });
+      
+      const labels = Object.keys(categories);
+      const data = Object.values(categories);
+      
+      if (chart) chart.destroy();
+      
+      chart = new Chart(ctx, {
+        type: "pie",
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: ["#4e73df","#1cc88a","#36b9cc","#f6c23e","#e74a3b","#858796","#20c997"]
+          }]
+        }
+      });
+    }
+  </script>
+</body>
+</html>
