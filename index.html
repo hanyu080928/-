@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>公款记录系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {font-family: "Segoe UI", Arial, sans-serif;margin: 0;background: #f4f6f9;color: #333;}
+    header {background: linear-gradient(135deg, #4e73df, #1cc88a);color: white;padding: 15px 20px;display: flex;align-items: center;box-shadow: 0 3px 6px rgba(0,0,0,0.2);}
+    header h1 {margin: 0;font-size: 20px;flex: 1;text-align: center;}
+    header img {height: 32px;width: 32px;margin-left: 10px;}
+    .sidebar {height: 100%;width: 0;position: fixed;top: 0;left: 0;background: #fff;box-shadow: 2px 0 8px rgba(0,0,0,0.2);overflow-x: hidden;transition: 0.3s;padding-top: 60px;z-index: 999;}
+    .sidebar a {padding: 15px 25px;text-decoration: none;font-size: 16px;color: #333;display: block;transition: 0.2s;}
+    .sidebar a:hover {background: #f4f6f9;color: #4e73df;}
+    .openbtn {font-size: 20px;cursor: pointer;background: none;border: none;color: white;}
+    main {padding: 20px;max-width: 1000px;margin: auto;}
+    .card {background: white;border-radius: 12px;padding: 20px;margin-bottom: 20px;box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+    .card h2 {margin-top: 0;color: #4e73df;}
+    button.action, .user-btn, .cancel-btn {background: #4e73df;color: white;cursor: pointer;border: none;border-radius: 6px;padding: 6px 10px;margin: 3px;font-size: 12px;}
+    .user-btn:hover, button.action:hover, .cancel-btn:hover {background: #2e59d9;}
+    table {width: 100%;border-collapse: collapse;margin: 15px 0;}
+    th, td {border: 1px solid #eee;padding: 10px;text-align: center;}
+    th {background: #f8f9fc;}
+    .alert {color: red;font-weight: bold;margin-top: 10px;}
+    .stats {display: flex;justify-content: space-between;flex-wrap: wrap;}
+    .stat-box {flex: 1;min-width: 200px;background: #f8f9fc;border-radius: 8px;margin: 10px;padding: 15px;text-align: center;}
+    .stat-box h3 {margin: 5px 0;font-size: 18px;}
+    .stat-box p {font-size: 20px;font-weight: bold;color: #1cc88a;}
+    .tab-content {display: none;}
+    .tab-content.active {display: block;}
+    .spend-card {background: #f8f9fc;border-left: 6px solid #e74a3b;padding: 10px 15px;margin: 10px 0;border-radius: 6px;}
+    .spend-card h4 {margin: 0;color: #e74a3b;}
+    .spend-card small {color: gray;}
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1cc88a;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 6px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+    }
+    
+    /* 日历样式 */
+    .calendar-container {
+      margin: 20px 0;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .calendar-nav-btn {
+      background: #4e73df;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .calendar {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .calendar th {
+      padding: 10px;
+      text-align: center;
+      background-color: #f8f9fc;
+    }
+    .calendar td {
+      padding: 0;
+      height: 80px;
+      border: 1px solid #eee;
+      vertical-align: top;
+      position: relative;
+    }
+    .calendar-date {
+      padding: 5px;
+      font-weight: bold;
+    }
+    .calendar-events {
+      padding: 5px;
+      font-size: 12px;
+      max-height: 60px;
+      overflow-y: auto;
+    }
+    .calendar-event {
+      background-color: #e3f2fd;
+      padding: 2px 4px;
+      border-radius: 2px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .current-day {
+      background-color: #e3f2fd;
+    }
+    .other-month {
+      background-color: #f9f9f9;
+      color: #ccc;
+    }
+
+    /* 月度交钱状态表格样式 */
+    .monthly-payment-card {
+      background: #f8f9fc;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+    }
+    .monthly-payment-card h3 {
+      margin-top: 0;
+      color: #4e73df;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+    .monthly-payment-table {
+      margin: 10px 0 0;
+    }
+    .paid-status {
+      color: #1cc88a;
+      font-weight: bold;
+    }
+    .unpaid-status {
+      color: #e74a3b;
+      font-weight: bold;
+    }
+    
+    /* 参与人选择样式 */
+    .participants-container {
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8f9fc;
+      border-radius: 6px;
+    }
+    .participants-container h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: #4e73df;
+    }
+    .participant-checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .participant-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .calculation-info {
+      margin: 10px 0;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body onload="initialize()">
+  <div class="notification" id="notification">本月已刷新交钱状态！</div>
+  
+  <header>
+    <button class="openbtn" onclick="openNav()">☰</button>
+    <h1>💰 公款记录系统</h1>
+    <img src="logo.png" alt="公款记录系统logo">
+  </header>
+
+  <!-- 侧边栏 -->
+  <div id="mySidebar" class="sidebar">
+    <a href="javascript:void(0)" onclick="showTab('payTab');closeNav()">交钱记录</a>
+    <a href="javascript:void(0)" onclick="showTab('spendTab');closeNav()">支出记录</a>
+    <a href="javascript:void(0)" onclick="showTab('historyTab');closeNav()">历史记录</a>
+    <a href="javascript:void(0)" onclick="showTab('incomeTab');closeNav()">收入记录</a>
+  </div>
+
+  <main>
+    <!-- 交钱记录 -->
+    <div id="payTab" class="tab-content active card">
+      <h2>交钱记录</h2>
+      <div class="stats">
+        <div class="stat-box">
+          <h3>已交人数</h3>
+          <p id="paidCount">0</p>
+        </div>
+        <div class="stat-box">
+          <h3>人均余额</h3>
+          <p id="averageBalance">RM 0</p>
+        </div>
+      </div>
+      <div id="userButtons"></div>
+      <table id="paymentTable"><thead><tr><th>姓名</th><th>已交金额</th><th>当前余额</th><th>操作</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <!-- 支出记录 -->
+    <div id="spendTab" class="tab-content card">
+      <h2>记录消费</h2>
+      <input type="text" id="remark" placeholder="花了什么">
+      <input type="number" id="amount" placeholder="金额 (RM)" step="0.01" min="0.01" oninput="calculatePerPerson()">
+      
+      <div class="participants-container">
+        <h3>选择参与消费的人（将平均分摊费用）</h3>
+        <div class="participant-checkboxes" id="participantCheckboxes">
+          <!-- 复选框将通过JS动态生成 -->
+        </div>
+      </div>
+      
+      <div class="calculation-info" id="calculationInfo">
+        请输入消费金额并选择参与人
+      </div>
+      
+      <button class="action" onclick="spend()">记录消费</button>
+      <p id="warning" class="alert"></p>
+      <div id="spendList"></div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div id="historyTab" class="tab-content card">
+      <h2>历史记录</h2>
+      <table id="historyTable"><thead><tr><th>类型</th><th>姓名/备注</th><th>金额</th><th>日期</th></tr></thead><tbody></tbody></table>
+      <div class="stats">
+        <div class="stat-box"><h3>总收入</h3><p id="totalIn">0</p></div>
+        <div class="stat-box"><h3>总支出</h3><p id="totalOut">0</p></div>
+        <div class="stat-box"><h3>总余额</h3><p id="balance">0</p></div>
+      </div>
+      <canvas id="chart" height="150"></canvas>
+    </div>
+
+    <!-- 收入记录（带日历视图 + 月度交钱状态表格） -->
+    <div id="incomeTab" class="tab-content card">
+      <h2>收入记录（每月）</h2>
+      
+      <!-- 1. 日历视图 -->
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <button class="calendar-nav-btn" onclick="changeCalendarMonth(-1)">&lt; 上月</button>
+          <h3 id="currentCalendarMonth">2023年1月</h3>
+          <button class="calendar-nav-btn" onclick="changeCalendarMonth(1)">下月 &gt;</button>
+        </div>
+        <table class="calendar" id="paymentCalendar">
+          <thead>
+            <tr>
+              <th>日</th>
+              <th>一</th>
+              <th>二</th>
+              <th>三</th>
+              <th>四</th>
+              <th>五</th>
+              <th>六</th>
+            </tr>
+          </thead>
+          <tbody id="calendarBody">
+            <!-- 日历内容将通过JavaScript生成 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- 2. 月度交钱状态表格 -->
+      <div class="income-history-section">
+        <h3>📅 月度交钱明细</h3>
+        <div id="monthlyPaymentList">
+          <!-- 表格内容通过JavaScript生成 -->
+          <p id="noHistoryTip" style="color: #858796; text-align: center; padding: 20px;">暂无历史交钱记录</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const members = ["shao xiang","rain","kian","yong liang","heng jing","CJ","Tommy"];
+    // 初始化每个人的账户信息，包含已交金额和已消费金额
+    let accounts = JSON.parse(localStorage.getItem("accounts")) || {};
+    let paymentDates = JSON.parse(localStorage.getItem("paymentDates")) || {};
+    let history = JSON.parse(localStorage.getItem("history")) || [];
+    let totalIn = parseFloat(localStorage.getItem("totalIn")) || 0;
+    let totalOut = parseFloat(localStorage.getItem("totalOut")) || 0;
+    let incomeHistory = JSON.parse(localStorage.getItem("incomeHistory")) || {};
+    let currentMonth = localStorage.getItem("currentMonth") || "";
+    let lastResetDate = localStorage.getItem("lastResetDate") || "";
+    let currentCalendarDate = new Date();
+    
+    // 初始化函数
+    function initialize() {
+      // 初始化账户信息
+      if (Object.keys(accounts).length === 0) {
+        members.forEach(name => {
+          accounts[name] = {
+            paid: 0,       // 已交金额
+            spent: 0,      // 已消费金额
+            balance: 0     // 余额 (paid - spent)
+          };
+          paymentDates[name] = {};
+        });
+        save();
+      }
+      
+      checkMonthlyReset();
+      checkMonth();
+      renderParticipantCheckboxes(); // 初始化参与人复选框
+      renderCalendar();
+    }
+
+    // 检查是否需要每月1号重置交钱状态
+    function checkMonthlyReset() {
+      const now = new Date();
+      const today = now.getDate();
+      const currentDateString = now.toISOString().split('T')[0];
+      
+      // 如果今天是1号且本月尚未重置过
+      if (today === 1 && lastResetDate!== currentDateString) {
+        resetMonthlyPayments();
+        lastResetDate = currentDateString;
+        localStorage.setItem("lastResetDate", lastResetDate);
+        
+        // 显示通知
+        const notification = document.getElementById("notification");
+        notification.style.display = "block";
+        setTimeout(() => {
+          notification.style.display = "none";
+        }, 3000);
+      }
+    }
+
+    // 重置每月交钱状态
+    function resetMonthlyPayments() {
+      // 记录历史
+      history.push({
+        type: "月度重置",
+        name: "所有成员交钱状态重置",
+        amount: 0,
+        date: new Date().toLocaleString()
+      });
+      
+      // 重置所有人的已交金额，但保留消费记录以便查看历史
+      members.forEach(name => {
+        accounts[name].paid = 0;
+        accounts[name].balance = accounts[name].paid - accounts[name].spent;
+      });
+      
+      // 重新计算总金额
+      totalIn = 0;
+      members.forEach(name => {
+        totalIn += accounts[name].paid;
+      });
+      
+      save();
+    }
+
+    // 侧边栏控制
+    function openNav() {
+      document.getElementById("mySidebar").style.width = "220px";
+    }
+    
+    function closeNav() {
+      document.getElementById("mySidebar").style.width = "0";
+    }
+    
+    // 标签页切换
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      
+      if (tabId === 'incomeTab') {
+        renderCalendar();
+        updateMonthlyPaymentTable();
+      }
+    }
+
+    // 检查月份变化
+    function checkMonth() {
+      const now = new Date();
+      const monthKey = now.getFullYear() + "-" + (now.getMonth() + 1);
+      if (monthKey!== currentMonth) {
+        if (currentMonth) {
+          // 保存上月每个人的交钱状态
+          const monthlyStatus = {};
+          members.forEach(name => {
+            monthlyStatus[name] = accounts[name].paid > 0;
+          });
+          incomeHistory[currentMonth] = monthlyStatus;
+        }
+        currentMonth = monthKey;
+        localStorage.setItem("incomeHistory", JSON.stringify(incomeHistory));
+        localStorage.setItem("currentMonth", currentMonth);
+      }
+      update();
+    }
+
+    // 初始化交钱表格
+    function initTable() {
+      const tbody = document.querySelector("#paymentTable tbody");
+      tbody.innerHTML = "";
+      
+      let paidCount = 0;
+      
+      members.forEach(name => {
+        const account = accounts[name];
+        if (account.paid > 0) paidCount++;
+        
+        const tr = document.createElement("tr");
+        // 余额为负时显示红色
+        const balanceStyle = account.balance < 0? 'color: red; font-weight: bold;' : '';
+        const payBtn = account.paid >= 10? 
+          '' : `<button class="user-btn" onclick="pay('${name}')">+RM10</button>`;
+        const resetBtn = account.paid > 0? 
+          `<button class="cancel-btn" onclick="resetPayment('${name}')">重置</button>` : '';
+          
+        tr.innerHTML = `
+          <td>${name}</td>
+          <td>RM ${account.paid.toFixed(2)}</td>
+          <td style="${balanceStyle}">RM ${account.balance.toFixed(2)}</td>
+          <td>${payBtn} ${resetBtn}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+      // 更新统计数据
+      document.getElementById("paidCount").textContent = paidCount;
+      
+      // 计算并显示人均余额
+      const averageBalance = totalIn > 0? (totalIn - totalOut) / paidCount : 0;
+      document.getElementById("averageBalance").textContent = `RM ${averageBalance.toFixed(2)}`;
+    }
+
+    // 处理交钱
+    function pay(payer) {
+      // 每次交10元
+      accounts[payer].paid += 10;
+      accounts[payer].balance = accounts[payer].paid - accounts[payer].spent;
+      totalIn += 10;
+      
+      // 记录交钱日期
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const monthKey = `${year}-${month}`;
+      
+      if (!paymentDates[payer][monthKey]) {
+        paymentDates[payer][monthKey] = [];
+      }
+      
+      if (!paymentDates[payer][monthKey].includes(day)) {
+        paymentDates[payer][monthKey].push(day);
+      }
+      
+      // 记录历史
+      history.push({
+        type: "收入",
+        name: payer,
+        amount: 10,
+        date: today.toLocaleString()
+      });
+      
+      save();
+      update();
+      
+      if (document.getElementById('incomeTab').classList.contains('active')) {
+        renderCalendar();
+        updateMonthlyPaymentTable();
+      }
+    }
+
+    // 重置个人交钱记录
+    function resetPayment(payer) {
+      if (accounts[payer].paid > 0) {
+        const resetAmount = accounts[payer].paid;
+        accounts[payer].paid = 0;
+        accounts[payer].balance = accounts[payer].paid - accounts[payer].spent;
+        totalIn -= resetAmount;
+        
+        // 记录历史
+        history.push({
+          type: "收入取消",
+          name: payer,
+          amount: -resetAmount,
+          date: new Date().toLocaleString()
+        });
+        
+        save();
+        update();
+        
+        if (document.getElementById('incomeTab').classList.contains('active')) {
+          renderCalendar();
+          updateMonthlyPaymentTable();
+        }
+      }
+    }
+
+    // 初始化参与人复选框
+    function renderParticipantCheckboxes() {
+      const container = document.getElementById("participantCheckboxes");
+      container.innerHTML = "";
+      
+      members.forEach(name => {
+        const div = document.createElement("div");
+        div.className = "participant-checkbox";
+        div.innerHTML = `
+          <input type="checkbox" id="participant-${name}" value="${name}" onchange="calculatePerPerson()">
+          <label for="participant-${name}">${name}</label>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // 计算每人分摊金额
+    function calculatePerPerson() {
+      const amount = parseFloat(document.getElementById("amount").value) || 0;
+      const checkboxes = document.querySelectorAll('#participantCheckboxes input:checked');
+      const participantCount = checkboxes.length;
+      
+      const infoDiv = document.getElementById("calculationInfo");
+      
+      if (amount <= 0 || participantCount === 0) {
+        infoDiv.innerHTML = "请输入消费金额并选择参与人";
+        return;
+      }
+      
+      const perPerson = amount / participantCount;
+      
+      // 检查每个参与人的余额是否足够
+      let insufficientFunds = [];
+      checkboxes.forEach(checkbox => {
+        const name = checkbox.value;
+        if (accounts[name].balance < perPerson) {
+          insufficientFunds.push(name);
+        }
+      });
+      
+      let warningText = "";
+      if (insufficientFunds.length > 0) {
+        warningText = `<span style="color: red;">警告：${insufficientFunds.join('、')} 余额不足！</span><br>`;
+      }
+      
+      infoDiv.innerHTML = `
+        ${warningText}
+        参与人数：${participantCount}人<br>
+        每人分摊：RM ${perPerson.toFixed(2)}
+      `;
+    }
+
+    // 记录消费
+    function spend() {
+      const remark = document.getElementById("remark").value;
+      const amount = parseFloat(document.getElementById("amount").value) || 0;
+      const checkboxes = document.querySelectorAll('#participantCheckboxes input:checked');
+      const participants = Array.from(checkboxes).map(cb => cb.value);
+      
+      // 验证输入
+      if (!remark || amount <= 0 || participants.length === 0) {
+        document.getElementById("warning").textContent = "请输入完整信息并选择参与人！";
+        return;
+      }
+      
+      // 计算每人分摊金额
+      const perPerson = amount / participants.length;
+      
+      // 检查每个人的余额是否足够
+      const insufficientFunds = [];
+      participants.forEach(name => {
+        if (accounts[name].balance < perPerson) {
+          insufficientFunds.push(name);
+        }
+      });
+      
+      if (insufficientFunds.length > 0) {
+        document.getElementById("warning").textContent = 
+          `无法记录消费：${insufficientFunds.join('、')} 余额不足！`;
+        return;
+      }
+      
+      // 扣除每个人的分摊金额
+      participants.forEach(name => {
+        accounts[name].spent += perPerson;
+        accounts[name].balance = accounts[name].paid - accounts[name].spent;
+      });
+      
+      // 更新总支出
+      totalOut += amount;
+      
+      // 记录历史
+      const today = new Date();
+      history.push({
+        type: "支出",
+        name: `${remark}（参与人：${participants.join('、')}）`,
+        amount: amount,
+        date: today.toLocaleString()
+      });
+      
+      // 保存并更新界面
+      save();
+      update();
+      
+      // 清空输入
+      document.getElementById("remark").value = "";
+      document.getElementById("amount").value = "";
+      document.getElementById("warning").textContent = "";
+      document.querySelectorAll('#participantCheckboxes input').forEach(cb => {
+        cb.checked = false;
+      });
+      calculatePerPerson();
+    }
+
+    // 更新界面
+    function update() {
+      initTable();
+      
+      // 更新历史记录表格
+      const historyTbody = document.querySelector("#historyTable tbody");
+      historyTbody.innerHTML = "";
+      // 倒序显示，最新的在前面
+      [...history].reverse().forEach(item => {
+        const tr = document.createElement("tr");
+        // 收入显示绿色，支出显示红色
+        const amountStyle = item.type === "收入"? 'color: #1cc88a;' : 
+                          item.type === "支出"? 'color: #e74a3b;' : '';
+        tr.innerHTML = `
+          <td>${item.type}</td>
+          <td>${item.name}</td>
+          <td style="${amountStyle}">RM ${parseFloat(item.amount).toFixed(2)}</td>
+          <td>${item.date}</td>
+        `;
+        historyTbody.appendChild(tr);
+      });
+      
+      // 更新统计数据
+      document.getElementById("totalIn").textContent = "RM " + totalIn.toFixed(2);
+      document.getElementById("totalOut").textContent = "RM " + totalOut.toFixed(2);
+      document.getElementById("balance").textContent = "RM " + (totalIn - totalOut).toFixed(2);
+      
+      // 更新支出列表
+      const spendList = document.getElementById("spendList");
+      spendList.innerHTML = "";
+      history.filter(h => h.type === "支出").forEach(s => {
+        const div = document.createElement("div");
+        div.className = "spend-card";
+        div.innerHTML = `
+          <h4>${s.name}</h4>
+          <p>RM ${parseFloat(s.amount).toFixed(2)}</p>
+          <small>${s.date}</small>
+        `;
+        spendList.prepend(div);
+      });
+      
+      // 更新月度交钱表格
+      updateMonthlyPaymentTable();
+      
+      // 更新图表
+      updateChart();
+    }
+
+    // 保存数据到本地存储
+    function save() {
+      localStorage.setItem("accounts", JSON.stringify(accounts));
+      localStorage.setItem("paymentDates", JSON.stringify(paymentDates));
+      localStorage.setItem("history", JSON.stringify(history));
+      localStorage.setItem("totalIn", totalIn);
+      localStorage.setItem("totalOut", totalOut);
+      localStorage.setItem("incomeHistory", JSON.stringify(incomeHistory));
+      localStorage.setItem("currentMonth", currentMonth);
+      localStorage.setItem("lastResetDate", lastResetDate);
+    }
+
+    // 更新月度交钱状态表格
+    function updateMonthlyPaymentTable() {
+      const listContainer = document.getElementById("monthlyPaymentList");
+      const noHistoryTip = document.getElementById("noHistoryTip");
+      
+      if (Object.keys(incomeHistory).length === 0) {
+        noHistoryTip.style.display = "block";
+        return;
+      }
+      
+      noHistoryTip.style.display = "none";
+      listContainer.innerHTML = "";
+      
+      // 按时间倒序排序
+      const months = Object.keys(incomeHistory).sort((a, b) => {
+        return new Date(b) - new Date(a);
+      });
+      
+      months.forEach(month => {
+        const monthData = incomeHistory[month];
+        const monthCard = document.createElement("div");
+        monthCard.className = "monthly-payment-card";
+        
+        const [year, monthNum] = month.split("-");
+        const displayMonth = `${year}年${monthNum}月`;
+        
+        let tableHtml = `
+          <h3>${displayMonth}</h3>
+          <table class="monthly-payment-table">
+            <tr>
+              <th>姓名</th>
+              <th>交钱状态</th>
+            </tr>
+        `;
+        
+        members.forEach(name => {
+          const isPaid = monthData[name] || false;
+          const statusClass = isPaid? "paid-status" : "unpaid-status";
+          const statusText = isPaid? "✅ 已交" : "❌ 未交";
+          
+          tableHtml += `
+            <tr>
+              <td>${name}</td>
+              <td class="${statusClass}">${statusText}</td>
+            </tr>
+          `;
+        });
+        
+        tableHtml += "</table>";
+        monthCard.innerHTML = tableHtml;
+        listContainer.appendChild(monthCard);
+      });
+      
+      // 添加当前月份的记录
+      if (currentMonth) {
+        const currentMonthCard = document.createElement("div");
+        currentMonthCard.className = "monthly-payment-card";
+        currentMonthCard.style.border = "2px solid #4e73df";
+        
+        const [year, monthNum] = currentMonth.split("-");
+        const displayMonth = `${year}年${monthNum}月（当前月）`;
+        
+        let currentTableHtml = `
+          <h3>${displayMonth}</h3>
+          <table class="monthly-payment-table">
+            <tr>
+              <th>姓名</th>
+              <th>交钱状态</th>
+              <th>当前余额</th>
+            </tr>
+        `;
+        
+        members.forEach(name => {
+          const isPaid = accounts[name].paid > 0;
+          const statusClass = isPaid? "paid-status" : "unpaid-status";
+          const statusText = isPaid? "✅ 已交" : "❌ 未交";
+          const balanceStyle = accounts[name].balance < 0? 'color: red; font-weight: bold;' : '';
+          
+          currentTableHtml += `
+            <tr>
+              <td>${name}</td>
+              <td class="${statusClass}">${statusText}</td>
+              <td style="${balanceStyle}">RM ${accounts[name].balance.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+        
+        currentTableHtml += "</table>";
+        currentMonthCard.innerHTML = currentTableHtml;
+        
+        if (listContainer.firstChild) {
+          listContainer.insertBefore(currentMonthCard, listContainer.firstChild);
+        } else {
+          listContainer.appendChild(currentMonthCard);
+        }
+      }
+    }
+
+    // 更新图表
+    let chart;
+    function updateChart() {
+      const ctx = document.getElementById("chart").getContext("2d");
+      const spendData = history.filter(h => h.type === "支出");
+      const categories = {};
+      
+      spendData.forEach(s => {
+        categories[s.name] = (categories[s.name] || 0) + parseFloat(s.amount);
+      });
+      
+      const labels = Object.keys(categories);
+      const data = Object.values(categories);
+      
+      if (chart) chart.destroy();
+      
+      chart = new Chart(ctx, {
+        type: "pie",
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: ["#4e73df","#1cc88a","#36b9cc","#f6c23e","#e74a3b","#858796","#20c997"]
+          }]
+        }
+      });
+    }
+    
+    // 日历相关函数
+    function renderCalendar() {
+      const year = currentCalendarDate.getFullYear();
+      const month = currentCalendarDate.getMonth();
+      
+      document.getElementById("currentCalendarMonth").textContent = `${year}年${month + 1}月`;
+      
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevMonthDays = firstDay;
+      const prevMonth = month === 0? 11 : month - 1;
+      const prevMonthYear = month === 0? year - 1 : year;
+      const daysInPrevMonth = new Date(prevMonthYear, prevMonth + 1, 0).getDate();
+      
+      const totalDays = prevMonthDays + daysInMonth;
+      const nextMonthDays = 42 - totalDays;
+      
+      const calendarBody = document.getElementById("calendarBody");
+      calendarBody.innerHTML = "";
+      
+      let dayCount = 1;
+      let nextMonthDayCount = 1;
+      const currentMonthKey = `${year}-${month + 1}`;
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+      
+      for (let i = 0; i < 6; i++) {
+        const row = document.createElement("tr");
+        
+        for (let j = 0; j < 7; j++) {
+          const cell = document.createElement("td");
+          
+          if (i === 0 && j < prevMonthDays) {
+            const day = daysInPrevMonth - prevMonthDays + j + 1;
+            cell.innerHTML = `<div class="calendar-date">${day}</div>`;
+            cell.classList.add("other-month");
+          } else if (dayCount <= daysInMonth) {
+            const isToday = isCurrentMonth && today.getDate() === dayCount;
+            if (isToday) {
+              cell.classList.add("current-day");
+            }
+            
+            let cellContent = `<div class="calendar-date">${dayCount}</div>`;
+            cellContent += '<div class="calendar-events">';
+            
+            members.forEach(name => {
+              if (paymentDates[name] && paymentDates[name][currentMonthKey] && 
+                  paymentDates[name][currentMonthKey].includes(dayCount)) {
+                cellContent += `<div class="calendar-event">${name} +RM10</div>`;
+              }
+            });
+            
+            cellContent += '</div>';
+            cell.innerHTML = cellContent;
+            
+            dayCount++;
+          } else {
+            cell.innerHTML = `<div class="calendar-date">${nextMonthDayCount}</div>`;
+            cell.classList.add("other-month");
+            nextMonthDayCount++;
+          }
+          
+          row.appendChild(cell);
+        }
+        
+        calendarBody.appendChild(row);
+      }
+    }
+    
+    function changeCalendarMonth(direction) {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+      renderCalendar();
+    }
+  </script>
+</body>
+</html>
+    
